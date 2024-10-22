@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Upload</title>
+</head>
+<body>
+    <h1>Audio File Upload</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" name="audio" accept="audio/*" required>
+        <button type="submit">Upload</button>
+    </form>
+    <div id="message"></div>
+
+    <script>
+    console.log("Script starting...");
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        console.log("Form submitted");
+        var formData = new FormData(this);
+        var messageDiv = document.getElementById('message');
+        messageDiv.textContent = 'Uploading...';
+
+        console.log("Sending fetch request to /upload");
+        fetch('/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            console.log('Response received');
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Success:', data);
+            messageDiv.textContent = 'File uploaded successfully!';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            messageDiv.textContent = 'Error uploading file: ' + error.message;
+        });
+    });
+    </script>
+</body>
+</html>
