@@ -37,6 +37,6 @@ def upload_audio(file_path, server_url, api_key):
 if __name__ == "__main__":
     server_url = "http://www.52ai.fun"
     audio_file_path = os.path.join(os.path.dirname(__file__), "2.wav")
-    api_key = "arPmwKIS3vDRn8kLyesSQw6bZGZVkPbHDEAnH9avi7w"  # 替换为服务器生成的实际 API 密钥
+    api_key = "1F1vmARoSjXRTDvywh9XtbnR8vd74AfffF0t0jn3qhM"  # 替换为服务器生成的实际 API 密钥arPmwKIS3vDRn8kLyesSQw6bZGZVkPbHDEAnH9avi7w
     
     upload_audio(audio_file_path, server_url, api_key)

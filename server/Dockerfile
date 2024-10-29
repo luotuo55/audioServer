@@ -10,6 +10,11 @@ COPY . /app
 # 创建上传目录和静态文件目录
 RUN mkdir -p /app/voice /app/public
 
+# 设置环境变量，但使用默认值
+ENV PORT=8000
+ENV BASE_URL=http://localhost:8000
+ENV VERSION=V1.3
+
 # 暴露端口 8000
 EXPOSE 8000
 

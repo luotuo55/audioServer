@@ -6,12 +6,14 @@ import cgi
 import uuid
 import secrets  # 新增：用于生成安全的 API 密钥
 
+VERSION = "V1.4"  # 添加版本号定义
+
 print("Server script starting...")
 
-# 设置存储静态文件的目录
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "public")
-# 设置存储上传音频文件的目录
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "voice")
+# 确保这些路径是正确的
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'public')
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'voice')
+BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
 
 print(f"STATIC_DIR: {STATIC_DIR}")
 print(f"UPLOAD_DIR: {UPLOAD_DIR}")
@@ -19,12 +21,21 @@ print(f"UPLOAD_DIR: {UPLOAD_DIR}")
 # 确保上传目录存在
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# 使用环境变量设置 API 密钥，如果没有设置则生成一个
-API_KEY = os.environ.get('API_KEY') or secrets.token_urlsafe(32)
-print(f"API Key: {API_KEY}")
+# API 密钥文件路径
+API_KEY_FILE = 'api_key.txt'
 
-# 添加一个新的常量来定义文件访问的基础 URL
-BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
+def get_or_create_api_key():
+    if os.path.exists(API_KEY_FILE):
+        with open(API_KEY_FILE, 'r') as f:
+            return f.read().strip()
+    else:
+        api_key = secrets.token_urlsafe(32)
+        with open(API_KEY_FILE, 'w') as f:
+            f.write(api_key)
+        return api_key
+
+API_KEY = get_or_create_api_key()
+print(f"API Key: {API_KEY}")
 
 class CustomHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -32,10 +43,18 @@ class CustomHandler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
 
     def do_GET(self):
-        print(f"Received GET request for: {self.path}")
-        if self.path == '/':
-            self.path = '/index.html'
-        return super().do_GET()
+        if self.path.startswith('/voice/'):
+            file_path = os.path.join(UPLOAD_DIR, os.path.basename(self.path))
+            if os.path.exists(file_path):
+                self.send_response(200)
+                self.send_header('Content-type', 'audio/mpeg')  # 或者根据文件类型设置正确的 MIME 类型
+                self.end_headers()
+                with open(file_path, 'rb') as file:
+                    self.wfile.write(file.read())
+            else:
+                self.send_error(404, "File not found")
+        else:
+            super().do_GET()
 
     def do_POST(self):
         print(f"Received POST request to: {self.path}")
@@ -167,11 +186,14 @@ class CustomHandler(SimpleHTTPRequestHandler):
 def run(server_class=HTTPServer, handler_class=CustomHandler, port=8000):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
-    print(f"Server starting on port {port}")
+    print(f"Server version {VERSION} starting on port {port}")
+    print(f"Base URL: {BASE_URL}")
     print(f"Serving files from directory: {STATIC_DIR}")
     print(f"Uploads will be stored in: {UPLOAD_DIR}")
-    print(f"Base URL for file access: {BASE_URL}")
-    httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("\nServer stopped.")
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 8000))
