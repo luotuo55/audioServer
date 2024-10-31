@@ -1,1 +1,4 @@
-1F1vmARoSjXRTDvywh9XtbnR8vd74AfffF0t0jn3qhM
+{
+    "api_key": "123456789",
+    "admin_key": "432126"
+} 

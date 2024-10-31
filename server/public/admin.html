@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>音频文件管理</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .filters {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f0f0f0;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+        }
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .audio-player {
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loginPanel" class="login-container">
+        <h2>管理员登录</h2>
+        <input type="password" id="adminKey" placeholder="请输入管理员密钥">
+        <button onclick="login()">登录</button>
+        <div id="loginError" class="error"></div>
+    </div>
+
+    <div id="adminPanel" class="container" style="display: none;">
+        <h1>音频文件管理</h1>
+        <div class="filters">
+            <input type="date" id="dateFilter" placeholder="日期筛选">
+            <button onclick="applyFilters()">筛选</button>
+            <button onclick="refreshData()">刷新</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>上传时间</th>
+                    <th>文件名</th>
+                    <th>原始文件名</th>
+                    <th>大小</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="uploadRecords"></tbody>
+        </table>
+    </div>
+
+    <script>
+        let adminKey = '';
+        let allRecords = [];
+
+        async function login() {
+            const keyInput = document.getElementById('adminKey');
+            adminKey = keyInput.value.trim();
+            
+            if (!adminKey) {
+                document.getElementById('loginError').textContent = '请输入管理员密钥';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/uploads', {
+                    headers: {
+                        'X-Admin-Key': adminKey
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('loginPanel').style.display = 'none';
+                    document.getElementById('adminPanel').style.display = 'block';
+                    allRecords = data.records || [];
+                    displayRecords(allRecords);
+                } else {
+                    const errorText = await response.text();
+                    document.getElementById('loginError').textContent = 
+                        `管理员密钥无效 (${response.status}: ${errorText})`;
+                }
+            } catch (error) {
+                document.getElementById('loginError').textContent = 
+                    '登录失败: ' + error.message;
+            }
+        }
+
+        function displayRecords(records) {
+            const tbody = document.getElementById('uploadRecords');
+            tbody.innerHTML = '';
+            
+            if (!records || records.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5">暂无上传记录</td></tr>';
+                return;
+            }
+
+            records.forEach(record => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${record.datetime || '未知时间'}</td>
+                    <td>${record.filename || '未知文件名'}</td>
+                    <td>${record.original_filename || '未知原始文件名'}</td>
+                    <td>${formatFileSize(record.size)}</td>
+                    <td>
+                        <button onclick="playAudio('${record.filename}')">播放</button>
+                        <button onclick="deleteFile('${record.filename}')">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes || isNaN(bytes)) return '未知大小';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        function applyFilters() {
+            let filteredRecords = [...allRecords];
+            
+            // 日期筛选
+            const dateFilter = document.getElementById('dateFilter').value;
+            if (dateFilter) {
+                filteredRecords = filteredRecords.filter(record => {
+                    if (!record.datetime) return false;
+                    return record.datetime.startsWith(dateFilter);
+                });
+            }
+
+            displayRecords(filteredRecords);
+        }
+
+        async function refreshData() {
+            try {
+                const response = await fetch('/api/admin/uploads', {
+                    headers: {
+                        'X-Admin-Key': adminKey
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    allRecords = data.records || [];
+                    displayRecords(allRecords);
+                } else {
+                    alert('刷新失败');
+                }
+            } catch (error) {
+                console.error('刷新失败:', error);
+                alert('刷新失败: ' + error.message);
+            }
+        }
+
+        async function playAudio(filename) {
+            try {
+                const audioUrl = `/voice/${filename}`;
+                console.log('播放音频:', audioUrl);
+                
+                const audioPlayer = new Audio(audioUrl);
+                audioPlayer.onerror = (error) => {
+                    console.error('音频加载失败:', error);
+                    alert('音频加载失败');
+                };
+                
+                await audioPlayer.play();
+            } catch (error) {
+                console.error('播放失败:', error);
+                alert('播放失败: ' + error.message);
+            }
+        }
+
+        async function deleteFile(filename) {
+            if (!confirm('确定要删除这个文件吗？')) return;
+
+            try {
+                console.log('删除文件:', filename);
+                const response = await fetch(`/api/admin/delete/${filename}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-Admin-Key': adminKey
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('删除成功:', data);
+                    await refreshData();
+                } else {
+                    const errorText = await response.text();
+                    console.error('删除失败:', response.status, errorText);
+                    alert(`删除失败: ${response.status} ${errorText}`);
+                }
+            } catch (error) {
+                console.error('删除请求失败:', error);
+                alert('删除失败: ' + error.message);
+            }
+        }
+
+        // 添加回车键登录支持
+        document.getElementById('adminKey').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+    </script>
+</body>
+</html> 

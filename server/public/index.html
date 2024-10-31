@@ -1,52 +1,132 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Upload</title>
+    <title>音频文件上传</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .upload-container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+        .progress {
+            margin-top: 10px;
+            padding: 5px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
 </head>
 <body>
-    <h1>Audio File Upload</h1>
-    <form id="uploadForm" enctype="multipart/form-data">
-        <input type="file" name="audio" accept="audio/*" required>
-        <button type="submit">Upload</button>
-    </form>
-    <div id="message"></div>
+    <div class="upload-container">
+        <h2>音频文件上传</h2>
+        <div>
+            <input type="file" accept="audio/*" id="audioFile">
+            <button onclick="uploadFile()" id="uploadButton">上传</button>
+        </div>
+        <div id="progress" class="progress" style="display: none;">
+            上传中...
+        </div>
+        <div id="result" class="result"></div>
+    </div>
 
     <script>
-    console.log("Script starting...");
-    document.getElementById('uploadForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        console.log("Form submitted");
-        var formData = new FormData(this);
-        var messageDiv = document.getElementById('message');
-        messageDiv.textContent = 'Uploading...';
+        async function uploadFile() {
+            const fileInput = document.getElementById('audioFile');
+            const resultDiv = document.getElementById('result');
+            const progressDiv = document.getElementById('progress');
+            const uploadButton = document.getElementById('uploadButton');
+            
+            try {
+                // 检查文件
+                if (!fileInput.files.length) {
+                    throw new Error('请选择文件');
+                }
 
-        console.log("Sending fetch request to /upload");
-        fetch('/upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            console.log('Response received');
-            console.log('Response status:', response.status);
-            console.log('Response headers:', response.headers);
-            if (!response.ok) {
-                return response.text().then(text => {
-                    throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
+                const file = fileInput.files[0];
+                
+                // 检查文件大小（最大50MB）
+                if (file.size > 50 * 1024 * 1024) {
+                    throw new Error('文件大小不能超过50MB');
+                }
+
+                // 准备上传
+                uploadButton.disabled = true;
+                progressDiv.style.display = 'block';
+                resultDiv.innerHTML = '';
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // 发送请求
+                console.log('开始上传...');
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
                 });
+
+                console.log('收到响应:', response.status);
+                if (!response.ok) {
+                    throw new Error(`上传失败: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('响应数据:', data);
+
+                // 显示结果
+                resultDiv.innerHTML = `
+                    <p class="success">上传成功！</p>
+                    <p>文件名: ${data.data.file_name}</p>
+                    <p>上传时间: ${data.data.upload_time}</p>
+                    <audio controls src="${data.data.file_url}"></audio>
+                `;
+            } catch (error) {
+                console.error('上传错误:', error);
+                resultDiv.innerHTML = `<p class="error">错误: ${error.message}</p>`;
+            } finally {
+                uploadButton.disabled = false;
+                progressDiv.style.display = 'none';
             }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Success:', data);
-            messageDiv.textContent = 'File uploaded successfully!';
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            messageDiv.textContent = 'Error uploading file: ' + error.message;
+        }
+
+        // 文件选择时清除结果
+        document.getElementById('audioFile').addEventListener('change', function() {
+            document.getElementById('result').innerHTML = '';
         });
-    });
     </script>
 </body>
 </html>

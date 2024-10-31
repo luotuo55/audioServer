@@ -1,200 +1,298 @@
+from http.server import HTTPServer, SimpleHTTPRequestHandler
 import os
 import json
-import traceback
-from http.server import SimpleHTTPRequestHandler, HTTPServer
+from datetime import datetime
 import cgi
-import uuid
-import secrets  # 新增：用于生成安全的 API 密钥
+import traceback
 
-VERSION = "V1.4"  # 添加版本号定义
-
-print("Server script starting...")
-
-# 确保这些路径是正确的
+# 基础配置
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'public')
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'voice')
-BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
 
-print(f"STATIC_DIR: {STATIC_DIR}")
-print(f"UPLOAD_DIR: {UPLOAD_DIR}")
+# 从文件加载API密钥
+def load_api_keys():
+    try:
+        with open('api_key.txt', 'r') as f:
+            keys = json.load(f)
+            return keys.get('api_key'), keys.get('admin_key')
+    except Exception as e:
+        print(f"Error loading API keys: {e}")
+        return None, None
 
-# 确保上传目录存在
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-# API 密钥文件路径
-API_KEY_FILE = 'api_key.txt'
-
-def get_or_create_api_key():
-    if os.path.exists(API_KEY_FILE):
-        with open(API_KEY_FILE, 'r') as f:
-            return f.read().strip()
-    else:
-        api_key = secrets.token_urlsafe(32)
-        with open(API_KEY_FILE, 'w') as f:
-            f.write(api_key)
-        return api_key
-
-API_KEY = get_or_create_api_key()
-print(f"API Key: {API_KEY}")
+API_KEY, ADMIN_KEY = load_api_keys()
 
 class CustomHandler(SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        print("Initializing CustomHandler")
-        super().__init__(*args, directory=STATIC_DIR, **kwargs)
-
     def do_GET(self):
-        if self.path.startswith('/voice/'):
-            file_path = os.path.join(UPLOAD_DIR, os.path.basename(self.path))
-            if os.path.exists(file_path):
-                self.send_response(200)
-                self.send_header('Content-type', 'audio/mpeg')  # 或者根据文件类型设置正确的 MIME 类型
-                self.end_headers()
-                with open(file_path, 'rb') as file:
-                    self.wfile.write(file.read())
-            else:
-                self.send_error(404, "File not found")
-        else:
-            super().do_GET()
+        """处理GET请求"""
+        print(f"\n=== 处理GET请求 ===")
+        print(f"请求路径: {self.path}")
+        
+        try:
+            # 处理音频文件请求
+            if self.path.startswith('/voice/'):
+                self.handle_audio_file()
+                return
+                
+            # 处理管理员API
+            if self.path.startswith('/api/admin/uploads'):
+                self.handle_admin_uploads()
+                return
+                
+            # 处理静态文件
+            if self.path == '/':
+                self.path = '/index.html'
+            elif self.path == '/admin':
+                self.path = '/admin.html'
 
-    def do_POST(self):
-        print(f"Received POST request to: {self.path}")
-        if self.path == '/api/upload':
-            # 验证 API 密钥
-            if not self.verify_api_key():
-                self.send_error(401, 'Unauthorized: Invalid API Key')
+            # 获取文件路径
+            if self.path.startswith('/'):
+                file_path = os.path.join(STATIC_DIR, self.path[1:])
+            else:
+                file_path = os.path.join(STATIC_DIR, self.path)
+
+            # 检查文件是否存在
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                with open(file_path, 'rb') as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header('Content-Type', self.guess_type(file_path))
+                self.send_header('Content-Length', len(content))
+                self.end_headers()
+                self.wfile.write(content)
+            else:
+                self.send_error(404, 'File not found')
+        except Exception as e:
+            print(f"Error: {e}")
+            self.send_error(500, str(e))
+
+    def handle_audio_file(self):
+        """处理音频文件请求"""
+        try:
+            # 获取文件名
+            file_name = os.path.basename(self.path)
+            file_path = os.path.join(UPLOAD_DIR, file_name)
+            
+            print(f"请求音频文件: {file_path}")
+            
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                with open(file_path, 'rb') as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header('Content-Type', 'audio/mpeg')
+                self.send_header('Content-Length', len(content))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(content)
+                print(f"音频文件发送成功: {file_path}")
+            else:
+                print(f"音频文件不存在: {file_path}")
+                self.send_error(404, "Audio file not found")
+        except Exception as e:
+            print(f"处理音频文件失败: {e}")
+            self.send_error(500, str(e))
+
+    def handle_admin_uploads(self):
+        """处理管理员上传列表请求"""
+        try:
+            # 验证管理员密钥
+            admin_key = self.headers.get('X-Admin-Key')
+            if admin_key != ADMIN_KEY:
+                self.send_error(401, 'Invalid admin key')
                 return
 
+            # 读取上传记录
+            records = []
+            if os.path.exists('upload_records.txt'):
+                with open('upload_records.txt', 'r') as f:
+                    for line in f:
+                        try:
+                            record = json.loads(line.strip())
+                            records.append(record)
+                        except:
+                            continue
+
+            # 发送响应
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            response = {
+                'code': 200,
+                'message': 'success',
+                'records': records
+            }
+            self.wfile.write(json.dumps(response).encode())
+            
+        except Exception as e:
+            print(f"Admin API error: {e}")
+            self.send_error(500, str(e))
+
+    def do_DELETE(self):
+        """处理DELETE请求"""
+        print(f"\n=== 处理DELETE请求 ===")
+        print(f"请求路径: {self.path}")
+        
+        if self.path.startswith('/api/admin/delete/'):
             try:
-                print("Processing API upload request")
-                content_length = int(self.headers['Content-Length'])
-                print(f"Content-Length: {content_length}")
+                # 验证管理员密钥
+                admin_key = self.headers.get('X-Admin-Key')
+                if admin_key != ADMIN_KEY:
+                    self.send_error(401, 'Invalid admin key')
+                    return
+
+                # 获取文件名
+                file_name = os.path.basename(self.path)
+                file_path = os.path.join(UPLOAD_DIR, file_name)
                 
-                content_type = self.headers['Content-Type']
-                print(f"Content-Type: {content_type}")
+                print(f"尝试删除文件: {file_path}")
                 
-                if content_type.startswith('audio/'):
-                    print("Receiving audio file")
-                    file_extension = self.get_file_extension(content_type)
-                    file_name = f"{uuid.uuid4()}.{file_extension}"
-                    file_path = os.path.join(UPLOAD_DIR, file_name)
+                if os.path.exists(file_path):
+                    # 删除文件
+                    os.remove(file_path)
                     
-                    with open(file_path, 'wb') as f:
-                        f.write(self.rfile.read(content_length))
+                    # 更新记录文件
+                    if os.path.exists('upload_records.txt'):
+                        with open('upload_records.txt', 'r', encoding='utf-8') as f:
+                            records = [json.loads(line) for line in f if line.strip()]
+                        
+                        # 过滤掉被删除的文件记录
+                        records = [r for r in records if r.get('filename') != file_name]
+                        
+                        with open('upload_records.txt', 'w', encoding='utf-8') as f:
+                            for record in records:
+                                f.write(json.dumps(record, ensure_ascii=False) + '\n')
                     
-                    print(f"File saved as: {file_path}")
+                    # 发送成功响应
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
                     self.send_header('Access-Control-Allow-Origin', '*')
                     self.end_headers()
-                    
-                    # 构建文件的访问 URL
-                    file_url = f"{BASE_URL}/voice/{file_name}"
-                    
-                    response = json.dumps({
-                        'message': 'File uploaded successfully',
-                        'file_name': file_name,
-                        'file_url': file_url
-                    })
-                    self.wfile.write(response.encode())
-                    print("Response sent")
-                    return
+                    response = {
+                        'code': 200,
+                        'message': '文件删除成功'
+                    }
+                    self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                    print(f"文件删除成功: {file_path}")
                 else:
-                    print(f"Unexpected content type: {content_type}")
-                    self.send_error(400, 'Bad Request: Invalid content type')
-                    return
+                    print(f"要删除的文件不存在: {file_path}")
+                    self.send_error(404, "File not found")
             except Exception as e:
-                print(f"Error during API file upload: {str(e)}")
+                print(f"删除文件失败: {e}")
                 print(traceback.format_exc())
-                self.send_error(500, f'Internal Server Error: {str(e)}')
-                return
-        elif self.path == '/upload':
-            try:
-                print("Processing upload request")
-                content_length = int(self.headers['Content-Length'])
-                print(f"Content-Length: {content_length}")
-                
-                content_type, _ = cgi.parse_header(self.headers['Content-Type'])
-                print(f"Content-Type: {content_type}")
-                
-                if content_type == 'multipart/form-data':
-                    print("Parsing multipart form data")
-                    form = cgi.FieldStorage(
-                        fp=self.rfile,
-                        headers=self.headers,
-                        environ={'REQUEST_METHOD': 'POST'}
-                    )
-                    print(f"Form fields: {list(form.keys())}")
-                    
-                    if 'audio' in form:
-                        file_item = form['audio']
-                        print(f"Received file: {file_item.filename}")
-                        if file_item.filename:
-                            file_path = os.path.join(UPLOAD_DIR, file_item.filename)
-                            print(f"Saving file to: {file_path}")
-                            with open(file_path, 'wb') as f:
-                                f.write(file_item.file.read())
-                            print("File saved successfully")
-                            self.send_response(200)
-                            self.send_header('Content-Type', 'application/json')
-                            self.send_header('Access-Control-Allow-Origin', '*')
-                            self.end_headers()
-                            response = json.dumps({'message': 'File uploaded successfully'})
-                            self.wfile.write(response.encode())
-                            print("Response sent")
-                            return
-                        else:
-                            print("File item has no filename")
-                    else:
-                        print("No 'audio' field in form data")
-                else:
-                    print(f"Unexpected content type: {content_type}")
-            except Exception as e:
-                print(f"Error during file upload: {str(e)}")
-                print(traceback.format_exc())
-                self.send_error(500, f'Internal Server Error: {str(e)}')
-                return
-            self.send_error(400, 'Bad Request: File not found in form data')
+                self.send_error(500, str(e))
         else:
-            self.send_error(404, 'Not Found')
+            self.send_error(404, "API not found")
 
     def do_OPTIONS(self):
-        print("Received OPTIONS request")
+        """处理OPTIONS请求"""
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header("Access-Control-Allow-Headers", "X-Requested-With, Content-Type, X-API-Key")  # 添加 X-API-Key
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Key')
         self.end_headers()
 
-    def get_file_extension(self, content_type):
-        # 映射 MIME 类型到文件扩展名
-        mime_to_extension = {
-            'audio/mpeg': 'mp3',
-            'audio/wav': 'wav',
-            'audio/ogg': 'ogg',
-            'audio/x-m4a': 'm4a',
-            'audio/aac': 'aac',
-            'audio/flac': 'flac',
-        }
-        subtype = content_type.split('/')[-1]
-        return mime_to_extension.get(content_type, subtype)
+    def do_POST(self):
+        """处理POST请求"""
+        print(f"\n=== 处理POST请求 ===")
+        print(f"请求路径: {self.path}")
+        
+        if self.path == '/api/upload':
+            try:
+                # 获取Content-Length
+                content_length = int(self.headers['Content-Length'])
+                print(f"Content-Length: {content_length}")
 
-    def verify_api_key(self):
-        # 从请求头中获取 API 密钥
-        provided_key = self.headers.get('X-API-Key')
-        return provided_key == API_KEY
+                # 设置最大文件大小（例如50MB）
+                max_file_size = 50 * 1024 * 1024
+                if content_length > max_file_size:
+                    self.send_error(413, "File too large")
+                    return
 
-def run(server_class=HTTPServer, handler_class=CustomHandler, port=8000):
+                # 解析表单数据
+                form = cgi.FieldStorage(
+                    fp=self.rfile,
+                    headers=self.headers,
+                    environ={
+                        'REQUEST_METHOD': 'POST',
+                        'CONTENT_TYPE': self.headers['Content-Type'],
+                    }
+                )
+
+                # 检查文件字段
+                if 'file' not in form:
+                    raise Exception('No file field in upload')
+
+                # 获取文件项
+                fileitem = form['file']
+                if not fileitem.filename:
+                    raise Exception('No file selected')
+
+                print(f"接收到文件: {fileitem.filename}")
+
+                # 生成安全的文件名
+                filename = os.path.basename(fileitem.filename)
+                safe_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
+                filepath = os.path.join(UPLOAD_DIR, safe_filename)
+
+                # 保存文件
+                with open(filepath, 'wb') as f:
+                    f.write(fileitem.file.read())
+
+                file_size = os.path.getsize(filepath)
+                print(f"文件已保存: {filepath} ({file_size} bytes)")
+
+                # 记录上传信息
+                record = {
+                    'datetime': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'filename': safe_filename,
+                    'original_filename': filename,
+                    'size': file_size
+                }
+
+                with open('upload_records.txt', 'a', encoding='utf-8') as f:
+                    f.write(json.dumps(record, ensure_ascii=False) + '\n')
+
+                # 发送响应
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                response = {
+                    'code': 200,
+                    'message': '上传成功',
+                    'data': {
+                        'file_name': safe_filename,
+                        'file_url': f'/voice/{safe_filename}',
+                        'upload_time': record['datetime']
+                    }
+                }
+                
+                response_json = json.dumps(response, ensure_ascii=False)
+                print(f"发送响应: {response_json}")
+                self.wfile.write(response_json.encode('utf-8'))
+
+            except Exception as e:
+                print(f"上传错误: {e}")
+                print(traceback.format_exc())
+                self.send_error(500, str(e))
+        else:
+            self.send_error(404, 'API not found')
+
+def run(port=8000):
     server_address = ('', port)
-    httpd = server_class(server_address, handler_class)
-    print(f"Server version {VERSION} starting on port {port}")
-    print(f"Base URL: {BASE_URL}")
-    print(f"Serving files from directory: {STATIC_DIR}")
-    print(f"Uploads will be stored in: {UPLOAD_DIR}")
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("\nServer stopped.")
+    httpd = HTTPServer(server_address, CustomHandler)
+    print(f"Starting server on port {port}")
+    print(f"Static directory: {STATIC_DIR}")
+    print(f"Upload directory: {UPLOAD_DIR}")
+    print(f"Admin key: {ADMIN_KEY}")  # 仅用于测试
+    httpd.serve_forever()
 
-if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 8000))
-    run(port=port)
+if __name__ == '__main__':
+    # 确保目录存在
+    os.makedirs(STATIC_DIR, exist_ok=True)
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    
+    # 启动服务器
+    run()
