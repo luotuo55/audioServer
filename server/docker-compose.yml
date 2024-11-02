@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  audio-server:
+    build: .
+    image: audio-server:1.6
+    container_name: audio-server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./voice:/app/voice
+      - ./logs:/app/logs
+    environment:
+      - VERSION=1.6
+    restart: unless-stopped 

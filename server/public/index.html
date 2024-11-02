@@ -49,6 +49,22 @@
             background-color: #cccccc;
             cursor: not-allowed;
         }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+        .footer .separator {
+            margin: 0 10px;
+            color: #ddd;
+        }
     </style>
 </head>
 <body>
@@ -69,57 +85,40 @@
             const fileInput = document.getElementById('audioFile');
             const resultDiv = document.getElementById('result');
             const progressDiv = document.getElementById('progress');
-            const uploadButton = document.getElementById('uploadButton');
+            
+            if (!fileInput.files.length) {
+                resultDiv.innerHTML = '<div class="error">请选择文件</div>';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
             
             try {
-                // 检查文件
-                if (!fileInput.files.length) {
-                    throw new Error('请选择文件');
-                }
-
-                const file = fileInput.files[0];
-                
-                // 检查文件大小（最大50MB）
-                if (file.size > 50 * 1024 * 1024) {
-                    throw new Error('文件大小不能超过50MB');
-                }
-
-                // 准备上传
-                uploadButton.disabled = true;
-                progressDiv.style.display = 'block';
-                resultDiv.innerHTML = '';
-
-                const formData = new FormData();
-                formData.append('file', file);
-
-                // 发送请求
-                console.log('开始上传...');
+                progressDiv.innerHTML = '上传中...';
                 const response = await fetch('/api/upload', {
                     method: 'POST',
                     body: formData
                 });
-
-                console.log('收到响应:', response.status);
-                if (!response.ok) {
-                    throw new Error(`上传失败: ${response.status}`);
-                }
-
+                
                 const data = await response.json();
-                console.log('响应数据:', data);
-
-                // 显示结果
-                resultDiv.innerHTML = `
-                    <p class="success">上传成功！</p>
-                    <p>文件名: ${data.data.file_name}</p>
-                    <p>上传时间: ${data.data.upload_time}</p>
-                    <audio controls src="${data.data.file_url}"></audio>
-                `;
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <p>上传成功！</p>
+                            <p>文件URL: <a href="${data.data.file_url}" target="_blank">${data.data.file_url}</a></p>
+                            <p>过期时间: ${data.data.expires_in}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">上传失败: ${data.message}</div>`;
+                }
             } catch (error) {
-                console.error('上传错误:', error);
-                resultDiv.innerHTML = `<p class="error">错误: ${error.message}</p>`;
+                resultDiv.innerHTML = `<div class="error">上传失败: ${error.message}</div>`;
             } finally {
-                uploadButton.disabled = false;
-                progressDiv.style.display = 'none';
+                progressDiv.innerHTML = '';
+                fileInput.value = '';  // 清除文件选择
             }
         }
 
@@ -128,5 +127,11 @@
             document.getElementById('result').innerHTML = '';
         });
     </script>
+
+    <div class="footer">
+        <span>音频文件服务器 V1.6</span>
+        <span class="separator">|</span>
+        <span>© 2024</span>
+    </div>
 </body>
 </html>

@@ -16,12 +16,6 @@
             border-radius: 8px;
             background-color: #f9f9f9;
         }
-        .filters {
-            margin-bottom: 20px;
-            padding: 10px;
-            background-color: #f0f0f0;
-            border-radius: 4px;
-        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -48,8 +42,9 @@
             background-color: #f9f9f9;
         }
         input {
+            width: 100%;
             padding: 8px;
-            margin: 5px;
+            margin: 10px 0;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
@@ -60,13 +55,186 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            margin: 5px;
         }
         button:hover {
             background-color: #45a049;
         }
-        .audio-player {
-            margin-top: 5px;
+        .tabs {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+            user-select: none;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            margin-right: 5px;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            background-color: #f8f8f8;
+            cursor: pointer;
+            color: #333;
+            font-weight: normal;
+            min-width: 100px;
+        }
+        .tab-btn.active {
+            background-color: #fff;
+            border-bottom: 1px solid #fff;
+            margin-bottom: -1px;
+            font-weight: bold;
+        }
+        .tab-btn:hover {
+            background-color: #f0f0f0;
+        }
+        .domain-management {
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 4px;
+        }
+        .add-domain {
+            margin-bottom: 20px;
+        }
+        .add-domain input {
+            width: 70%;
+            padding: 8px;
+            margin-right: 10px;
+        }
+        .domain-list {
+            list-style: none;
+            padding: 0;
+        }
+        .domain-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .domain-list button {
+            background-color: #ff4444;
+            padding: 5px 10px;
+        }
+        .domain-list button:hover {
+            background-color: #cc0000;
+        }
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .filter-group input,
+        .filter-group select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+            color: #666;
+        }
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+        }
+        .page-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        th {
+            cursor: pointer;
+            user-select: none;
+        }
+        th:hover {
+            background-color: #f0f0f0;
+        }
+        .sort-active {
+            background-color: #e8e8e8;
+        }
+        .log-filters {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .log-table td {
+            max-width: 400px;
+            overflow-wrap: break-word;
+        }
+        .log-details {
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 0.9em;
+            background-color: #f8f8f8;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        .log-filters {
+            background-color: #f8f8f8;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .filter-group:last-child {
+            margin-bottom: 0;
+        }
+        .log-stats {
+            margin: 10px 0;
+            color: #666;
+        }
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .log-table th,
+        .log-table td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        .log-table th {
+            background-color: #f5f5f5;
+        }
+        .log-details {
+            max-width: 300px;
+            overflow-wrap: break-word;
+            font-size: 0.9em;
+        }
+        .action-upload {
+            color: #4CAF50;
+        }
+        .action-delete {
+            color: #f44336;
+        }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+        .footer .separator {
+            margin: 0 10px;
+            color: #ddd;
         }
     </style>
 </head>
@@ -80,28 +248,135 @@
 
     <div id="adminPanel" class="container" style="display: none;">
         <h1>音频文件管理</h1>
-        <div class="filters">
-            <input type="date" id="dateFilter" placeholder="日期筛选">
-            <button onclick="applyFilters()">筛选</button>
-            <button onclick="refreshData()">刷新</button>
+        
+        <div class="tabs">
+            <button onclick="switchTab('files')" class="tab-btn active" id="filesTab">文件管理</button>
+            <button onclick="switchTab('domains')" class="tab-btn" id="domainsTab">域名管理</button>
+            <button onclick="switchTab('logs')" class="tab-btn" id="logsTab">操作日志</button>
         </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>上传时间</th>
-                    <th>文件名</th>
-                    <th>原始文件名</th>
-                    <th>大小</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody id="uploadRecords"></tbody>
-        </table>
+
+        <div id="filesPanel" class="tab-panel">
+            <div class="filters">
+                <div class="filter-group">
+                    <input type="date" id="dateFilter" placeholder="按日期筛选">
+                    <input type="text" id="nameFilter" placeholder="按文件名搜索">
+                    <select id="sizeFilter">
+                        <option value="">文件大小</option>
+                        <option value="0-1">1MB以下</option>
+                        <option value="1-5">1-5MB</option>
+                        <option value="5-10">5-10MB</option>
+                        <option value="10+">10MB以上</option>
+                    </select>
+                    <button onclick="applyFilters()">筛选</button>
+                    <button onclick="resetFilters()">重置</button>
+                    <button onclick="refreshData()">刷新</button>
+                </div>
+                <div class="stats">
+                    <span>总文件数: <span id="totalFiles">0</span></span>
+                    <span>总大小: <span id="totalSize">0</span></span>
+                </div>
+            </div>
+
+            <div class="pagination">
+                <span>每页显示:</span>
+                <select id="pageSize" onchange="changePageSize()">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <div class="page-controls">
+                    <button onclick="changePage(-1)">上一页</button>
+                    <span id="pageInfo">第 1 页 / 共 1 页</span>
+                    <button onclick="changePage(1)">下一页</button>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th onclick="sortRecords('datetime')">上传时间 ▼</th>
+                        <th onclick="sortRecords('filename')">文件名</th>
+                        <th onclick="sortRecords('original_filename')">原始文件名</th>
+                        <th onclick="sortRecords('size')">大小</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="uploadRecords"></tbody>
+            </table>
+        </div>
+
+        <div id="domainsPanel" class="tab-panel" style="display: none;">
+            <div class="domain-management">
+                <h2>允许的域名</h2>
+                <div class="add-domain">
+                    <input type="text" id="newDomain" placeholder="输入域名 (例如: http://example.com)">
+                    <button onclick="addDomain(false)">添加域名</button>
+                </div>
+                <ul id="domainList" class="domain-list"></ul>
+
+                <h2>域名模式</h2>
+                <div class="add-domain">
+                    <input type="text" id="newPattern" placeholder="输入正则表达式 (例如: ^https?://[^.]+\.example\.com$)">
+                    <button onclick="addDomain(true)">添加模式</button>
+                </div>
+                <ul id="patternList" class="domain-list"></ul>
+            </div>
+        </div>
+
+        <div id="logsPanel" class="tab-panel" style="display: none;">
+            <div class="log-filters">
+                <div class="filter-group">
+                    <label>日期范围：</label>
+                    <input type="date" id="logStartDate" placeholder="开始日期">
+                    <span>至</span>
+                    <input type="date" id="logEndDate" placeholder="结束日期">
+                </div>
+                <div class="filter-group">
+                    <label>操作类型：</label>
+                    <select id="logActionType">
+                        <option value="">全部</option>
+                        <option value="upload">上传</option>
+                        <option value="delete">删除</option>
+                    </select>
+                    <button onclick="loadLogs()">查询</button>
+                    <button onclick="resetLogFilters()">重置</button>
+                </div>
+            </div>
+            
+            <div class="log-stats">
+                <span>总记录数：<span id="totalLogs">0</span></span>
+            </div>
+
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>操作</th>
+                        <th>IP地址</th>
+                        <th>文件名</th>
+                        <th>详情</th>
+                    </tr>
+                </thead>
+                <tbody id="logRecords"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer">
+        <span>音频文件服务器 V1.6</span>
+        <span class="separator">|</span>
+        <span>© 2024</span>
     </div>
 
     <script>
         let adminKey = '';
         let allRecords = [];
+        let currentPage = 1;
+        let recordsPerPage = 10;
+        let sortField = 'datetime';
+        let sortDirection = 'desc';
+        let filteredRecords = [];
 
         async function login() {
             const keyInput = document.getElementById('adminKey');
@@ -124,7 +399,10 @@
                     document.getElementById('loginPanel').style.display = 'none';
                     document.getElementById('adminPanel').style.display = 'block';
                     allRecords = data.records || [];
-                    displayRecords(allRecords);
+                    filteredRecords = [...allRecords];
+                    displayRecords();
+                    updateStats();
+                    switchTab('files');
                 } else {
                     const errorText = await response.text();
                     document.getElementById('loginError').textContent = 
@@ -136,16 +414,21 @@
             }
         }
 
-        function displayRecords(records) {
+        function displayRecords() {
+            const startIndex = (currentPage - 1) * recordsPerPage;
+            const endIndex = startIndex + recordsPerPage;
+            const pageRecords = filteredRecords.slice(startIndex, endIndex);
+            const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
+
             const tbody = document.getElementById('uploadRecords');
             tbody.innerHTML = '';
             
-            if (!records || records.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5">暂无上传记录</td></tr>';
+            if (pageRecords.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">暂无记录</td></tr>';
                 return;
             }
 
-            records.forEach(record => {
+            pageRecords.forEach(record => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${record.datetime || '未知时间'}</td>
@@ -159,6 +442,9 @@
                 `;
                 tbody.appendChild(row);
             });
+
+            document.getElementById('pageInfo').textContent = 
+                `第 ${currentPage} 页 / 共 ${totalPages} 页`;
         }
 
         function formatFileSize(bytes) {
@@ -169,18 +455,94 @@
         }
 
         function applyFilters() {
-            let filteredRecords = [...allRecords];
-            
-            // 日期筛选
             const dateFilter = document.getElementById('dateFilter').value;
-            if (dateFilter) {
-                filteredRecords = filteredRecords.filter(record => {
-                    if (!record.datetime) return false;
-                    return record.datetime.startsWith(dateFilter);
-                });
+            const nameFilter = document.getElementById('nameFilter').value.toLowerCase();
+            const sizeFilter = document.getElementById('sizeFilter').value;
+
+            filteredRecords = allRecords.filter(record => {
+                let matchDate = true;
+                let matchName = true;
+                let matchSize = true;
+
+                if (dateFilter) {
+                    matchDate = record.datetime.startsWith(dateFilter);
+                }
+
+                if (nameFilter) {
+                    matchName = (record.filename.toLowerCase().includes(nameFilter) ||
+                                record.original_filename.toLowerCase().includes(nameFilter));
+                }
+
+                if (sizeFilter) {
+                    const sizeMB = (record.size || 0) / (1024 * 1024);
+                    switch(sizeFilter) {
+                        case '0-1': matchSize = sizeMB < 1; break;
+                        case '1-5': matchSize = sizeMB >= 1 && sizeMB < 5; break;
+                        case '5-10': matchSize = sizeMB >= 5 && sizeMB < 10; break;
+                        case '10+': matchSize = sizeMB >= 10; break;
+                    }
+                }
+
+                return matchDate && matchName && matchSize;
+            });
+
+            currentPage = 1;
+            sortRecords(sortField);
+            updateStats();
+        }
+
+        function resetFilters() {
+            document.getElementById('dateFilter').value = '';
+            document.getElementById('nameFilter').value = '';
+            document.getElementById('sizeFilter').value = '';
+            filteredRecords = [...allRecords];
+            currentPage = 1;
+            sortRecords(sortField);
+            updateStats();
+        }
+
+        function sortRecords(field) {
+            if (sortField === field) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortField = field;
+                sortDirection = 'desc';
             }
 
-            displayRecords(filteredRecords);
+            document.querySelectorAll('th').forEach(th => {
+                th.textContent = th.textContent.replace(' ▼', '').replace(' ▲', '');
+                if (th.onclick && th.onclick.toString().includes(field)) {
+                    th.textContent += sortDirection === 'asc' ? ' ▲' : ' ▼';
+                }
+            });
+
+            filteredRecords.sort((a, b) => {
+                let comparison = 0;
+                if (field === 'size') {
+                    comparison = (a[field] || 0) - (b[field] || 0);
+                } else {
+                    comparison = String(a[field] || '').localeCompare(String(b[field] || ''));
+                }
+                return sortDirection === 'asc' ? comparison : -comparison;
+            });
+
+            displayRecords();
+        }
+
+        function changePage(delta) {
+            const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
+            const newPage = currentPage + delta;
+            
+            if (newPage >= 1 && newPage <= totalPages) {
+                currentPage = newPage;
+                displayRecords();
+            }
+        }
+
+        function changePageSize() {
+            recordsPerPage = parseInt(document.getElementById('pageSize').value);
+            currentPage = 1;
+            displayRecords();
         }
 
         async function refreshData() {
@@ -194,7 +556,9 @@
                 if (response.ok) {
                     const data = await response.json();
                     allRecords = data.records || [];
-                    displayRecords(allRecords);
+                    filteredRecords = [...allRecords];
+                    displayRecords();
+                    updateStats();
                 } else {
                     alert('刷新失败');
                 }
@@ -224,9 +588,9 @@
 
         async function deleteFile(filename) {
             if (!confirm('确定要删除这个文件吗？')) return;
-
+            
             try {
-                console.log('删除文件:', filename);
+                console.log('正在删除文件:', filename);
                 const response = await fetch(`/api/admin/delete/${filename}`, {
                     method: 'DELETE',
                     headers: {
@@ -237,6 +601,7 @@
                 if (response.ok) {
                     const data = await response.json();
                     console.log('删除成功:', data);
+                    // 刷新文件列表
                     await refreshData();
                 } else {
                     const errorText = await response.text();
@@ -249,10 +614,255 @@
             }
         }
 
-        // 添加回车键登录支持
         document.getElementById('adminKey').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 login();
+            }
+        });
+
+        async function loadDomains() {
+            try {
+                const response = await fetch('/api/admin/domains', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Key': adminKey
+                    },
+                    body: JSON.stringify({ action: 'list' })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    displayDomains(data);
+                } else {
+                    const error = await response.text();
+                    alert('加载域名列表失败: ' + error);
+                }
+            } catch (error) {
+                console.error('加载域名失败:', error);
+                alert('加载域名失败: ' + error.message);
+            }
+        }
+
+        function displayDomains(data) {
+            const domainList = document.getElementById('domainList');
+            const patternList = document.getElementById('patternList');
+            
+            domainList.innerHTML = '';
+            patternList.innerHTML = '';
+            
+            data.allowed_origins.forEach(origin => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span>${origin}</span>
+                    <button onclick="removeDomain('${origin}', false)">删除</button>
+                `;
+                domainList.appendChild(li);
+            });
+            
+            data.domain_patterns.forEach(pattern => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span>${pattern}</span>
+                    <button onclick="removeDomain('${pattern}', true)">删除</button>
+                `;
+                patternList.appendChild(li);
+            });
+        }
+
+        async function addDomain(isPattern) {
+            const input = isPattern ? 
+                document.getElementById('newPattern') : 
+                document.getElementById('newDomain');
+            const value = input.value.trim();
+            
+            if (!value) {
+                alert('请输入' + (isPattern ? '域名模式' : '域名'));
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/domains', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Key': adminKey
+                    },
+                    body: JSON.stringify({
+                        action: 'add',
+                        origin: value,
+                        is_pattern: isPattern
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        input.value = '';
+                        displayDomains(data);
+                    } else {
+                        alert('添加失败');
+                    }
+                } else {
+                    const error = await response.text();
+                    alert('添加失败: ' + error);
+                }
+            } catch (error) {
+                console.error('添加域名失败:', error);
+                alert('添加域名失败: ' + error.message);
+            }
+        }
+
+        async function removeDomain(origin, isPattern) {
+            if (!confirm(`确定要删除 ${origin} 吗？`)) return;
+            
+            try {
+                const response = await fetch('/api/admin/domains', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Key': adminKey
+                    },
+                    body: JSON.stringify({
+                        action: 'remove',
+                        origin: origin,
+                        is_pattern: isPattern
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        displayDomains(data);
+                    } else {
+                        alert('删除失败');
+                    }
+                } else {
+                    const error = await response.text();
+                    alert('删除失败: ' + error);
+                }
+            } catch (error) {
+                console.error('删除域名失败:', error);
+                alert('删除域名失败: ' + error.message);
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(tab + 'Tab').classList.add('active');
+            
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.style.display = 'none';
+            });
+            document.getElementById(tab + 'Panel').style.display = 'block';
+            
+            if (tab === 'logs') {
+                console.log("切换到日志标签");
+                loadLogs();  // 切换到日志标签时加载日志
+            }
+        }
+
+        function updateStats() {
+            const totalFiles = filteredRecords.length;
+            const totalSize = filteredRecords.reduce((sum, record) => sum + (record.size || 0), 0);
+            
+            document.getElementById('totalFiles').textContent = totalFiles;
+            document.getElementById('totalSize').textContent = formatFileSize(totalSize);
+        }
+
+        async function loadLogs() {
+            try {
+                console.log("开始加载日志...");
+                const startDate = document.getElementById('logStartDate').value;
+                const endDate = document.getElementById('logEndDate').value;
+                const actionType = document.getElementById('logActionType').value;
+                
+                // 构建查询参数
+                const params = new URLSearchParams();
+                if (startDate) params.append('start_date', startDate);
+                if (endDate) params.append('end_date', endDate);
+                if (actionType) params.append('action_type', actionType);
+                
+                console.log("查询参数:", params.toString());
+                
+                const response = await fetch(`/api/admin/logs?${params.toString()}`, {
+                    headers: {
+                        'X-Admin-Key': adminKey
+                    }
+                });
+
+                console.log("服务器响应状态:", response.status);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log("获取到日志数据:", data);
+                    if (data.code === 200) {
+                        displayLogs(data.data);
+                    } else {
+                        alert('加载日志失败: ' + data.message);
+                    }
+                } else {
+                    const error = await response.text();
+                    console.error("加载日志失败:", error);
+                    alert('加载日志失败: ' + error);
+                }
+            } catch (error) {
+                console.error('加载日志失败:', error);
+                alert('加载日志失败: ' + error.message);
+            }
+        }
+
+        function displayLogs(logs) {
+            console.log("显示日志记录:", logs);
+            const tbody = document.getElementById('logRecords');
+            document.getElementById('totalLogs').textContent = logs.length;
+            tbody.innerHTML = '';
+            
+            if (!logs || logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">暂无日志记录</td></tr>';
+                return;
+            }
+
+            logs.forEach(log => {
+                const row = document.createElement('tr');
+                const details = log.details || {};
+                
+                row.innerHTML = `
+                    <td>${log.timestamp}</td>
+                    <td class="action-${log.action}">${formatAction(log.action)}</td>
+                    <td>${details.ip || '-'}</td>
+                    <td>${details.filename || details.original_filename || '-'}</td>
+                    <td class="log-details">${formatDetails(details)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function formatAction(action) {
+            const actionMap = {
+                'upload': '上传',
+                'delete': '删除'
+            };
+            return actionMap[action] || action;
+        }
+
+        function formatDetails(details) {
+            return JSON.stringify(details, null, 2);
+        }
+
+        function resetLogFilters() {
+            document.getElementById('logStartDate').value = '';
+            document.getElementById('logEndDate').value = '';
+            document.getElementById('logActionType').value = '';
+            loadLogs();
+        }
+
+        // 在页面加载完成后自动加载日志
+        document.addEventListener('DOMContentLoaded', () => {
+            if (document.getElementById('logsPanel').style.display !== 'none') {
+                loadLogs();
             }
         });
     </script>
